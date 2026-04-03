@@ -14,15 +14,148 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Clone TWA template
-        run: git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa
-
-      - name: Configure TWA
-        working-directory: twa
+      - name: Create Android project
         run: |
-          cat > app/src/main/res/values/strings.xml << 'EOF'
+          mkdir -p twa/app/src/main/res/values
+          mkdir -p twa/app/src/main/res/mipmap-hdpi
+          mkdir -p twa/gradle/wrapper
+
+          # Root build.gradle
+          cat > twa/build.gradle << 'EOF'
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOF
+
+          # settings.gradle
+          echo "include ':app'" > twa/settings.gradle
+
+          # gradle-wrapper.properties
+          cat > twa/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          # app/build.gradle
+          cat > twa/app/build.gradle << 'EOF'
+          plugins { id 'com.android.application' }
+          android {
+              compileSdk 34
+              namespace 'com.skstudio.compoundcalculator'
+              defaultConfig {
+                  applicationId 'com.skstudio.compoundcalculator'
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName '1.0'
+              }
+              signingConfigs {
+                  release {
+                      storeFile file('../android.keystore')
+                      storePassword 'android123'
+                      keyAlias 'android'
+                      keyPassword 'android123'
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
+          }
+          dependencies {
+              implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+          }
+          EOF
+
+          # AndroidManifest.xml
+          cat > twa/app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+                android:label="@string/app_name"
+                android:allowBackup="true"
+                android:supportsRtl="true">
+              <activity
+                  android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                  android:exported="true">
+                <meta-data
+                    android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                    android:value="https://leeseonkeunsam.github.io/compound-calculator/" />
+                <meta-data
+                    android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+                    android:resource="@color/colorPrimary" />
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+                <intent-filter android:autoVerify="true">
+                  <action android:name="android.intent.action.VIEW"/>
+                  <category android:name="android.intent.category.DEFAULT" />
+                  <category android:name="android.intent.category.BROWSABLE"/>
+                  <data android:scheme="https"
+                      android:host="leeseonkeunsam.github.io"
+                      android:pathPrefix="/compound-calculator"/>
+                </intent-filter>
+              </activity>
+              <service
+                  android:name="com.google.androidbrowserhelper.trusted.DelegationService"
+                  android:exported="true"
+                  android:enabled="true">
+                <intent-filter>
+                  <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE"/>
+                  <category android:name="android.intent.category.DEFAULT"/>
+                </intent-filter>
+              </service>
+            </application>
+          </manifest>
+          EOF
+
+          # strings.xml
+          cat > twa/app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-            <string name="app_name">복리계산기</string>
-            <string name="launcher_name">복리계산기</string>
-            <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","
+              <string name="app_name">복리계산기</string>
+          </resources>
+          EOF
+
+          # colors.xml
+          cat > twa/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="colorPrimary">#0e0f11</color>
+          </resources>
+          EOF
+
+          # gradlew
+          printf '#!/bin/sh\nexec gradle "$@"\n' > twa/gradlew
+          chmod +x twa/gradlew
+
+      - name: Generate Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore twa/android.keystore \
+            -alias android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android123 -keypass android123 \
+            -dname "CN=SK Studio, O=SK Studio, C=KR"
+
+      - name: Build AAB
+        working-directory: twa
+        run: gradle bundleRelease
+
+      - name: Find AAB file
+        run: find twa -name "*.aab"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: twa/app/build/outputs/bundle/release/app-release.aab
