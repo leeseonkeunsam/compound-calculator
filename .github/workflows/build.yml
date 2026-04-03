@@ -14,13 +14,16 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Gradle 8.6
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.6'
+
       - name: Create Android project
         run: |
           mkdir -p twa/app/src/main/res/values
-          mkdir -p twa/app/src/main/res/mipmap-hdpi
           mkdir -p twa/gradle/wrapper
 
-          # Root build.gradle
           cat > twa/build.gradle << 'EOF'
           buildscript {
               repositories { google(); mavenCentral() }
@@ -31,26 +34,13 @@ jobs:
           }
           EOF
 
-          # settings.gradle
           echo "include ':app'" > twa/settings.gradle
 
-          # gradle.properties
           cat > twa/gradle.properties << 'EOF'
           android.useAndroidX=true
-          android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
           EOF
 
-          # gradle-wrapper.properties
-          cat > twa/gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-          # app/build.gradle
           cat > twa/app/build.gradle << 'EOF'
           plugins { id 'com.android.application' }
           android {
@@ -83,7 +73,6 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
           cat > twa/app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -126,7 +115,6 @@ jobs:
           </manifest>
           EOF
 
-          # strings.xml
           cat > twa/app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -134,17 +122,12 @@ jobs:
           </resources>
           EOF
 
-          # colors.xml
           cat > twa/app/src/main/res/values/colors.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <color name="colorPrimary">#0e0f11</color>
           </resources>
           EOF
-
-          # gradlew
-          printf '#!/bin/sh\nexec gradle "$@"\n' > twa/gradlew
-          chmod +x twa/gradlew
 
       - name: Generate Keystore
         run: |
@@ -158,9 +141,6 @@ jobs:
       - name: Build AAB
         working-directory: twa
         run: gradle bundleRelease
-
-      - name: Find AAB file
-        run: find twa -name "*.aab"
 
       - uses: actions/upload-artifact@v4
         with:
