@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>복리 계산기 · Compound Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2025;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0ee;
+    --muted: #7a7a78;
+    --accent: #4a9eff;
+    --accent-dim: rgba(74,158,255,0.12);
+    --green: #3ecf8e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 880px;
+    background: var(--surface);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: baseline; gap: 10px; }
+  .header h1 { font-size: 17px; font-weight: 500; letter-spacing: -0.3px; }
+  .header-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  /* Currency pill buttons in header */
+  .currency-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .cpill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 20px;
+    padding: 4px 11px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .cpill:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+  .cpill.active {
+    background: var(--accent-dim);
+    border-color: rgba(74,158,255,0.4);
+    color: var(--accent);
+  }
+
+  /* ── Body ── */
+  .body { display: grid; grid-template-columns: 265px 1fr; }
+
+  /* ── LEFT controls ── */
+  .controls {
+    padding: 24px 20px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .value-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 9px;
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px; height: 15px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(74,158,255,0.2);
+    transition: box-shadow 0.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(74,158,255,0.25); }
+
+  .range-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10px; color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: 'Noto Sans KR', sans-serif;
+    outline: none; cursor: pointer;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7a78' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .tip {
+    font-size: 11px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(74,158,255,0.15);
+    margin-top: auto;
+    line-height: 1.5;
+  }
+
+  /* ── RIGHT panel ── */
+  .right-panel { display: flex; flex-direction: column; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stat { padding: 16px 18px; border-right: 1px solid var(--border); overflow: hidden; }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stat-value.green  { color: var(--green); }
+  .stat-value.accent { color: var(--accent); }
+
+  .chart-area { padding: 16px 20px 12px; flex-shrink: 0; }
+
+  .legend { display: flex; gap: 16px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  #chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 235px;
+  }
+  #chart {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+
+  /* ── Footer milestones ── */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 11px 20px;
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .milestone {
+    flex-shrink: 0;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 7px 11px;
+    text-align: center;
+    min-width: 74px;
+  }
+  .milestone-year { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .milestone-val  { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; }
+  .milestone-pct  { font-size: 10px; color: var(--green); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header with currency pills -->
+  <div class="header">
+    <div class="header-left">
+      <h1>복리 계산기</h1>
+      <span class="header-sub">compound calculator</span>
+    </div>
+    <div class="currency-pills" id="currency-pills">
+      <button class="cpill active" data-code="KRW">₩ 원</button>
+      <button class="cpill" data-code="USD">$ 달러</button>
+      <button class="cpill" data-code="EUR">€ 유로</button>
+      <button class="cpill" data-code="JPY">¥ 엔</button>
+      <button class="cpill" data-code="CNY">元 위안</button>
+      <button class="cpill" data-code="HKD">HK$ 홍콩달러</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- LEFT -->
+    <div class="controls">
+      <div class="control-group">
+        <label id="label-principal">초기 투자금</label>
+        <div class="value-display" id="v-principal"></div>
+        <input type="range" id="principal">
+        <div class="range-labels">
+          <span id="range-min"></span>
+          <span id="range-max"></span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label id="label-rate">연 이자율</label>
+        <div class="value-display" id="v-rate">7%</div>
+        <input type="range" id="rate" min="1" max="20" step="1" value="7">
+        <div class="range-labels"><span>1%</span><span>20%</span></div>
+      </div>
+
+      <div class="control-group">
+        <label id="label-years">투자 기간</label>
+        <div class="value-display" id="v-years"></div>
+        <input type="range" id="years" min="5" max="40" step="1" value="20">
+        <div class="range-labels" id="range-years-labels"></div>
+      </div>
+
+      <div class="control-group">
+        <label id="label-freq">복리 주기</label>
+        <select id="freq">
+          <option value="1"  id="freq-1">연 1회</option>
+          <option value="4"  id="freq-4">분기 (연 4회)</option>
+          <option value="12" id="freq-12" selected>월 1회</option>
+          <option value="365" id="freq-365">일 1회</option>
+        </select>
+      </div>
+
+      <div class="tip" id="tip-72"></div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-panel">
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label" id="label-final">최종 금액</div>
+          <div class="stat-value accent" id="stat-final">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label" id="label-interest">총 이자 수익</div>
+          <div class="stat-value green" id="stat-interest">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label" id="label-vs">단리 대비 추가</div>
+          <div class="stat-value" id="stat-vs">—</div>
+        </div>
+      </div>
+
+      <div class="chart-area">
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4a9eff"></div><span id="leg-compound">복리</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#666"></div><span id="leg-simple">단리</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#333"></div><span id="leg-principal">원금</span></div>
+        </div>
+        <div id="chart-wrap"><canvas id="chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   CURRENCY DEFINITIONS
+   Each entry:
+     symbol     — prefix symbol
+     name       — display name
+     principal  — { min, max, step, default }
+     fmt(n)     — long format for stats / labels
+     fmtS(n)    — short format for Y-axis ticks & milestone cards
+     fmtMin/Max — range label strings
+     yearLabel  — "년" or "yr"
+     i18n       — UI string overrides (optional)
+══════════════════════════════════════════════ */
+const CURRENCIES = {
+  KRW: {
+    symbol: '₩',
+    name: '원',
+    principal: { min: 100000, max: 50000000, step: 100000, def: 10000000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 100000000) return s + (abs/100000000).toFixed(1) + '억원';
+      if (abs >= 10000)     return s + Math.round(abs/10000) + '만원';
+      return s + Math.round(abs).toLocaleString() + '원';
+    },
+    fmtS(n) {
+      if (n >= 100000000) return (n/100000000).toFixed(1) + '억';
+      if (n >= 10000)     return Math.round(n/10000) + '만';
+      return Math.round(n).toLocaleString();
+    },
+    fmtMin: '10만',
+    fmtMax: '5,000만',
+    yearLabel: '년',
+    i18n: {
+      principal: '초기 투자금', rate: '연 이자율', years: '투자 기간', freq: '복리 주기',
+      final: '최종 금액', interest: '총 이자 수익', vs: '단리 대비 추가',
+      compound: '복리', simple: '단리', principalLeg: '원금',
+      freqOpts: ['연 1회','분기 (연 4회)','월 1회','일 1회'],
+      tip: (r) => `⚡ 72의 법칙: 약 ${(72/r).toFixed(1)}년마다 2배`,
+      yr: (y) => y + '년'
+    }
+  },
+  USD: {
+    symbol: '$',
+    name: 'USD',
+    principal: { min: 1000, max: 500000, step: 1000, def: 10000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 1000000000) return s + '$' + (abs/1000000000).toFixed(2) + 'B';
+      if (abs >= 1000000)    return s + '$' + (abs/1000000).toFixed(2) + 'M';
+      if (abs >= 1000)       return s + '$' + (abs/1000).toFixed(1) + 'K';
+      return s + '$' + abs.toFixed(0);
+    },
+    fmtS(n) {
+      if (n >= 1000000000) return '$' + (n/1000000000).toFixed(1) + 'B';
+      if (n >= 1000000)    return '$' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000)       return '$' + (n/1000).toFixed(0) + 'K';
+      return '$' + n.toFixed(0);
+    },
+    fmtMin: '$1K',
+    fmtMax: '$500K',
+    yearLabel: 'yr',
+    i18n: {
+      principal: 'Principal', rate: 'Annual Rate', years: 'Period', freq: 'Compounding',
+      final: 'Final Amount', interest: 'Total Interest', vs: 'vs Simple',
+      compound: 'Compound', simple: 'Simple', principalLeg: 'Principal',
+      freqOpts: ['Annually','Quarterly','Monthly','Daily'],
+      tip: (r) => `⚡ Rule of 72: doubles every ~${(72/r).toFixed(1)} yrs`,
+      yr: (y) => y + ' yr'
+    }
+  },
+  EUR: {
+    symbol: '€',
+    name: 'EUR',
+    principal: { min: 1000, max: 500000, step: 1000, def: 10000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 1000000000) return s + '€' + (abs/1000000000).toFixed(2) + 'B';
+      if (abs >= 1000000)    return s + '€' + (abs/1000000).toFixed(2) + 'M';
+      if (abs >= 1000)       return s + '€' + (abs/1000).toFixed(1) + 'K';
+      return s + '€' + abs.toFixed(0);
+    },
+    fmtS(n) {
+      if (n >= 1000000000) return '€' + (n/1000000000).toFixed(1) + 'B';
+      if (n >= 1000000)    return '€' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000)       return '€' + (n/1000).toFixed(0) + 'K';
+      return '€' + n.toFixed(0);
+    },
+    fmtMin: '€1K',
+    fmtMax: '€500K',
+    yearLabel: 'yr',
+    i18n: {
+      principal: 'Principal', rate: 'Annual Rate', years: 'Period', freq: 'Compounding',
+      final: 'Final Amount', interest: 'Total Interest', vs: 'vs Simple',
+      compound: 'Compound', simple: 'Simple', principalLeg: 'Principal',
+      freqOpts: ['Annually','Quarterly','Monthly','Daily'],
+      tip: (r) => `⚡ Rule of 72: doubles every ~${(72/r).toFixed(1)} yrs`,
+      yr: (y) => y + ' yr'
+    }
+  },
+  JPY: {
+    symbol: '¥',
+    name: '円',
+    principal: { min: 10000, max: 10000000, step: 10000, def: 1000000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 100000000) return s + (abs/100000000).toFixed(1) + '億円';
+      if (abs >= 10000)     return s + Math.round(abs/10000) + '万円';
+      return s + Math.round(abs).toLocaleString() + '円';
+    },
+    fmtS(n) {
+      if (n >= 100000000) return (n/100000000).toFixed(1) + '億';
+      if (n >= 10000)     return Math.round(n/10000) + '万';
+      return Math.round(n).toLocaleString();
+    },
+    fmtMin: '1万',
+    fmtMax: '1,000万',
+    yearLabel: '年',
+    i18n: {
+      principal: '元本', rate: '年利率', years: '期間', freq: '複利周期',
+      final: '最終金額', interest: '利息合計', vs: '単利との差',
+      compound: '複利', simple: '単利', principalLeg: '元本',
+      freqOpts: ['年1回','四半期','月1回','毎日'],
+      tip: (r) => `⚡ 72の法則: 約${(72/r).toFixed(1)}年で2倍`,
+      yr: (y) => y + '年'
+    }
+  },
+  CNY: {
+    symbol: '¥',
+    name: '元',
+    principal: { min: 10000, max: 5000000, step: 10000, def: 100000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 100000000) return s + (abs/100000000).toFixed(1) + '亿元';
+      if (abs >= 10000)     return s + Math.round(abs/10000) + '万元';
+      return s + Math.round(abs).toLocaleString() + '元';
+    },
+    fmtS(n) {
+      if (n >= 100000000) return (n/100000000).toFixed(1) + '亿';
+      if (n >= 10000)     return Math.round(n/10000) + '万';
+      return Math.round(n).toLocaleString();
+    },
+    fmtMin: '1万',
+    fmtMax: '500万',
+    yearLabel: '年',
+    i18n: {
+      principal: '本金', rate: '年利率', years: '投资年限', freq: '复利周期',
+      final: '最终金额', interest: '利息收益', vs: '与单利对比',
+      compound: '复利', simple: '单利', principalLeg: '本金',
+      freqOpts: ['每年','每季度','每月','每日'],
+      tip: (r) => `⚡ 72法则: 约${(72/r).toFixed(1)}年翻倍`,
+      yr: (y) => y + '年'
+    }
+  },
+  HKD: {
+    symbol: 'HK$',
+    name: 'HKD',
+    principal: { min: 10000, max: 5000000, step: 10000, def: 100000 },
+    fmt(n) {
+      const abs = Math.abs(n), s = n < 0 ? '-' : '';
+      if (abs >= 1000000000) return s + 'HK$' + (abs/1000000000).toFixed(2) + 'B';
+      if (abs >= 1000000)    return s + 'HK$' + (abs/1000000).toFixed(2) + 'M';
+      if (abs >= 1000)       return s + 'HK$' + (abs/1000).toFixed(1) + 'K';
+      return s + 'HK$' + abs.toFixed(0);
+    },
+    fmtS(n) {
+      if (n >= 1000000000) return 'HK$' + (n/1000000000).toFixed(1) + 'B';
+      if (n >= 1000000)    return 'HK$' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000)       return 'HK$' + (n/1000).toFixed(0) + 'K';
+      return 'HK$' + n.toFixed(0);
+    },
+    fmtMin: 'HK$10K',
+    fmtMax: 'HK$5M',
+    yearLabel: 'yr',
+    i18n: {
+      principal: 'Principal', rate: 'Annual Rate', years: 'Period', freq: 'Compounding',
+      final: 'Final Amount', interest: 'Total Interest', vs: 'vs Simple',
+      compound: 'Compound', simple: 'Simple', principalLeg: 'Principal',
+      freqOpts: ['Annually','Quarterly','Monthly','Daily'],
+      tip: (r) => `⚡ Rule of 72: doubles every ~${(72/r).toFixed(1)} yrs`,
+      yr: (y) => y + ' yr'
+    }
+  }
+};
+
+/* ── State ── */
+let currentCode = 'KRW';
+let currentCurrency = CURRENCIES.KRW;
+
+/* ── Canvas refs ── */
+const canvas = document.getElementById('chart');
+const wrap   = document.getElementById('chart-wrap');
+const ctx    = canvas.getContext('2d');
+
+/* ── niceMax ── */
+function niceMax(raw) {
+  if (raw <= 0) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const s of [1, 2, 2.5, 5, 10]) {
+    const c = s * mag;
+    if (c >= raw * 1.05) return c;
+  }
+  return 10 * mag * 10;
+}
+
+/* ── Draw chart ── */
+function drawChart(compound, simple, principal) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.offsetWidth;
+  const H = wrap.offsetHeight;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 10, right: 14, bottom: 32, left: 62 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top  - pad.bottom;
+  const maxVal = niceMax(compound[compound.length - 1]);
+  const N = compound.length - 1;
+
+  function xPos(i) { return pad.left + (N > 0 ? i/N : 0) * cw; }
+  function yPos(v) { return pad.top  + ch - (v/maxVal) * ch; }
+
+  /* Y grid */
+  const TICKS = 5;
+  for (let i = 0; i <= TICKS; i++) {
+    const v = (maxVal / TICKS) * i;
+    const y = Math.round(yPos(v)) + 0.5;
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y);
+    ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.font = '10px "DM Mono", monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(currentCurrency.fmtS(v), pad.left - 5, y);
+  }
+
+  /* X labels */
+  const labelStep = N <= 10 ? 1 : N <= 20 ? 5 : 10;
+  ctx.fillStyle = '#666';
+  ctx.font = '10px "DM Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i <= N; i++) {
+    if (i % labelStep === 0) {
+      const label = currentCurrency.i18n.yr(i);
+      ctx.fillText(label, xPos(i), pad.top + ch + 8);
+    }
+  }
+
+  /* Fill */
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(compound[0]));
+  for (let i = 1; i <= N; i++) ctx.lineTo(xPos(i), yPos(compound[i]));
+  ctx.lineTo(xPos(N), yPos(0));
+  ctx.lineTo(xPos(0), yPos(0));
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+  grad.addColorStop(0, 'rgba(74,158,255,0.16)');
+  grad.addColorStop(1, 'rgba(74,158,255,0.01)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  /* Lines */
+  function drawLine(data, color, dash, width) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width || 2;
+    ctx.setLineDash(dash || []);
+    ctx.moveTo(xPos(0), yPos(data[0]));
+    for (let i = 1; i <= N; i++) ctx.lineTo(xPos(i), yPos(data[i]));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  drawLine(principal, 'rgba(255,255,255,0.08)', [3,6], 1.5);
+  drawLine(simple,    '#555555',                [5,4], 1.5);
+  drawLine(compound,  '#4a9eff',                [],    2.5);
+}
+
+/* ── Apply i18n labels to UI ── */
+function applyLocale() {
+  const c = currentCurrency;
+  const t = c.i18n;
+  document.getElementById('label-principal').textContent = t.principal;
+  document.getElementById('label-rate').textContent      = t.rate;
+  document.getElementById('label-years').textContent     = t.years;
+  document.getElementById('label-freq').textContent      = t.freq;
+  document.getElementById('label-final').textContent     = t.final;
+  document.getElementById('label-interest').textContent  = t.interest;
+  document.getElementById('label-vs').textContent        = t.vs;
+  document.getElementById('leg-compound').textContent    = t.compound;
+  document.getElementById('leg-simple').textContent      = t.simple;
+  document.getElementById('leg-principal').textContent   = t.principalLeg;
+  ['freq-1','freq-4','freq-12','freq-365'].forEach((id, i) => {
+    document.getElementById(id).textContent = t.freqOpts[i];
+  });
+
+  /* Principal slider range */
+  const p = c.principal;
+  const slider = document.getElementById('principal');
+  slider.min   = p.min;
+  slider.max   = p.max;
+  slider.step  = p.step;
+  slider.value = p.def;
+  document.getElementById('range-min').textContent = c.fmtMin;
+  document.getElementById('range-max').textContent = c.fmtMax;
+
+  /* Year labels */
+  const yl = c.yearLabel;
+  document.getElementById('range-years-labels').innerHTML =
+    `<span>5${yl}</span><span>40${yl}</span>`;
+}
+
+/* ── Main calc ── */
+function calc() {
+  const c    = currentCurrency;
+  const t    = c.i18n;
+  const P    = +document.getElementById('principal').value;
+  const r    = +document.getElementById('rate').value / 100;
+  const Y    = +document.getElementById('years').value;
+  const n    = +document.getElementById('freq').value;
+  const rPct = +document.getElementById('rate').value;
+
+  document.getElementById('v-principal').textContent = c.fmt(P);
+  document.getElementById('v-rate').textContent      = rPct + '%';
+  document.getElementById('v-years').textContent     = t.yr(Y);
+  document.getElementById('tip-72').textContent      = t.tip(rPct);
+
+  const compound = [], simple = [], principal = [];
+  for (let y = 0; y <= Y; y++) {
+    compound.push( Math.round(P * Math.pow(1 + r/n, n*y)) );
+    simple.push(   Math.round(P * (1 + r*y)) );
+    principal.push(P);
+  }
+
+  const finalC = compound[Y];
+  const finalS = simple[Y];
+  const diff   = finalC - finalS;
+
+  document.getElementById('stat-final').textContent    = c.fmt(finalC);
+  document.getElementById('stat-interest').textContent = '+' + c.fmt(finalC - P);
+  document.getElementById('stat-vs').textContent       = (diff >= 0 ? '+' : '') + c.fmt(diff);
+
+  drawChart(compound, simple, principal);
+
+  const footer = document.getElementById('footer');
+  footer.innerHTML = '';
+  [5,10,15,20,25,30,35,40].filter(y => y <= Y).forEach(y => {
+    const val = compound[y];
+    const pct = Math.round((val/P - 1) * 100);
+    const el  = document.createElement('div');
+    el.className = 'milestone';
+    el.innerHTML =
+      `<div class="milestone-year">${t.yr(y)}</div>` +
+      `<div class="milestone-val">${c.fmtS(val)}</div>` +
+      `<div class="milestone-pct">+${pct.toLocaleString()}%</div>`;
+    footer.appendChild(el);
+  });
+}
+
+/* ── Currency switch ── */
+document.getElementById('currency-pills').addEventListener('click', e => {
+  const btn = e.target.closest('.cpill');
+  if (!btn) return;
+  const code = btn.dataset.code;
+  if (code === currentCode) return;
+
+  document.querySelectorAll('.cpill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  currentCode = code;
+  currentCurrency = CURRENCIES[code];
+  applyLocale();
+  calc();
+});
+
+/* ── Slider / select listeners ── */
+['principal','rate','years','freq'].forEach(id =>
+  document.getElementById(id).addEventListener('input', calc)
+);
+window.addEventListener('resize', calc);
+
+/* ── Init ── */
+applyLocale();
+calc();
+</script>
+</body>
+</html>
