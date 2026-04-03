@@ -1,22 +1,69 @@
-name: Build Android APK
+name: Build Android AAB
 on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - uses: android-actions/setup-android@v2
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
-      - name: Init TWA
-        run: bubblewrap init --manifest https://leeseonkeunsam.github.io/compound-calculator/manifest.json --directory twa
+
+      - name: Create twa-manifest
+        run: |
+          mkdir -p twa
+          cat > twa/twa-manifest.json << 'EOF'
+          {
+            "packageId": "com.skstudio.compoundcalculator",
+            "host": "leeseonkeunsam.github.io",
+            "name": "복리계산기",
+            "launcherName": "복리계산기",
+            "display": "standalone",
+            "themeColor": "#0e0f11",
+            "backgroundColor": "#0e0f11",
+            "startUrl": "/compound-calculator/",
+            "iconUrl": "https://leeseonkeunsam.github.io/compound-calculator/icon-512.png",
+            "maskableIconUrl": "https://leeseonkeunsam.github.io/compound-calculator/icon-512.png",
+            "appVersion": "1",
+            "appVersionCode": 1,
+            "signingKey": {
+              "path": "android.keystore",
+              "alias": "android"
+            },
+            "minSdkVersion": 19,
+            "orientation": "portrait",
+            "shortcuts": []
+          }
+          EOF
+
+      - name: Generate Keystore
+        working-directory: twa
+        run: |
+          keytool -genkeypair -v \
+            -keystore android.keystore \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android123 \
+            -keypass android123 \
+            -dname "CN=SK Studio, OU=SK Studio, O=SK Studio, L=Gyeongsan, S=Gyeongbuk, C=KR"
+
       - name: Build AAB
-        run: cd twa && bubblewrap build
+        working-directory: twa
+        run: bubblewrap build --skipPwaValidation
+
       - uses: actions/upload-artifact@v4
         with:
-          name: android-package
-          path: twa/*.aab
+          name: android-aab
+          path: |
+            twa/app-release-bundle.aab
+            twa/app-release-signed.apk
