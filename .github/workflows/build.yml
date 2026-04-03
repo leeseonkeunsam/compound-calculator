@@ -1,0 +1,22 @@
+name: Build Android APK
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: android-actions/setup-android@v2
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+      - name: Init TWA
+        run: bubblewrap init --manifest https://leeseonkeunsam.github.io/compound-calculator/manifest.json --directory twa
+      - name: Build AAB
+        run: cd twa && bubblewrap build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: android-package
+          path: twa/*.aab
