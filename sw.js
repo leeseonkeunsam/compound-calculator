@@ -1,14 +1,19 @@
-const CACHE = 'compound-v1';
+const CACHE = 'compound-v2';
 const FILES = [
-  '/compound-calculator/',
-  '/compound-calculator/index.html',
-  '/compound-calculator/manifest.json',
-  '/compound-calculator/icon-192.png',
-  '/compound-calculator/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', e => {
+  self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', e => {
