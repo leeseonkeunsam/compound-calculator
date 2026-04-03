@@ -14,41 +14,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
-
-      - name: Configure Bubblewrap (prevents JDK prompt)
+      - name: Clone TWA template
         run: |
-          bubblewrap updateConfig \
-            --jdkPath "$JAVA_HOME" \
-            --androidSdkPath "$ANDROID_SDK_ROOT"
+          git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa
 
-      - name: Create twa-manifest.json
+      - name: Configure TWA
+        working-directory: twa
         run: |
-          mkdir -p twa
-          cat > twa/twa-manifest.json << 'EOF'
-          {
-            "packageId": "com.skstudio.compoundcalculator",
-            "host": "leeseonkeunsam.github.io",
-            "name": "복리계산기",
-            "launcherName": "복리계산기",
-            "display": "standalone",
-            "themeColor": "#0e0f11",
-            "backgroundColor": "#0e0f11",
-            "startUrl": "/compound-calculator/",
-            "iconUrl": "https://leeseonkeunsam.github.io/compound-calculator/icon-512.png",
-            "maskableIconUrl": "https://leeseonkeunsam.github.io/compound-calculator/icon-512.png",
-            "appVersion": "1",
-            "appVersionCode": 1,
-            "signingKey": {
-              "path": "android.keystore",
-              "alias": "android"
-            },
-            "minSdkVersion": 19,
-            "orientation": "portrait",
-            "shortcuts": []
-          }
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <string name="app_name">복리계산기</string>
+            <string name="launcher_name">복리계산기</string>
+            <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://leeseonkeunsam.github.io"}}]</string>
+          </resources>
           EOF
+          
+          sed -i 's|https://svgomg.net|https://leeseonkeunsam.github.io|g' app/build.gradle
+          sed -i 's|/|/compound-calculator/|g' app/build.gradle
+          sed -i 's|net.svgomg.twa|com.skstudio.compoundcalculator|g' app/build.gradle
 
       - name: Generate Keystore
         working-directory: twa
@@ -56,28 +40,10 @@ jobs:
           keytool -genkeypair -v \
             -keystore android.keystore \
             -alias android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android123 \
-            -keypass android123 \
-            -dname "CN=SK Studio, OU=SK Studio, O=SK Studio, L=Gyeongsan, S=Gyeongbuk, C=KR"
-
-      - name: Init TWA project
-        working-directory: twa
-        run: |
-          bubblewrap init \
-            --manifest https://leeseonkeunsam.github.io/compound-calculator/manifest.json \
-            --directory . \
-            --skipPwaValidation
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android123 -keypass android123 \
+            -dname "CN=SK Studio, O=SK Studio, C=KR"
 
       - name: Build AAB
         working-directory: twa
-        run: bubblewrap build --skipPwaValidation
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-aab
-          path: |
-            twa/app-release-bundle.aab
-            twa/app-release-signed.apk
+        run: |
