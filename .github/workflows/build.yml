@@ -15,8 +15,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Clone TWA template
-        run: |
-          git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa
+        run: git clone https://github.com/GoogleChromeLabs/svgomg-twa.git twa
 
       - name: Configure TWA
         working-directory: twa
@@ -26,24 +25,4 @@ jobs:
           <resources>
             <string name="app_name">복리계산기</string>
             <string name="launcher_name">복리계산기</string>
-            <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://leeseonkeunsam.github.io"}}]</string>
-          </resources>
-          EOF
-          
-          sed -i 's|https://svgomg.net|https://leeseonkeunsam.github.io|g' app/build.gradle
-          sed -i 's|/|/compound-calculator/|g' app/build.gradle
-          sed -i 's|net.svgomg.twa|com.skstudio.compoundcalculator|g' app/build.gradle
-
-      - name: Generate Keystore
-        working-directory: twa
-        run: |
-          keytool -genkeypair -v \
-            -keystore android.keystore \
-            -alias android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android123 -keypass android123 \
-            -dname "CN=SK Studio, O=SK Studio, C=KR"
-
-      - name: Build AAB
-        working-directory: twa
-        run: |
+            <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","
